@@ -1,5 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as mpl
+from sklearn.ensemble import ExtraTreesClassifier
 
 
 def get_statistics(df):
@@ -25,6 +26,19 @@ def get_statistics(df):
     mpl.xlabel("Wiek")
     mpl.ylabel("Ilość klientów")
     mpl.savefig("klient_a_wiek.png")
+    mpl.close()
+    print()
+
+    region = df['Region_Code']
+    print("Sredni region " + str(region.mean()))
+    count_region = region.value_counts()
+    print("Najczesciej wystepujacy region " + str(count_region.idxmax()))
+    # Wykres
+    count_region.sort_index().plot(kind="bar", figsize=(10, 8))
+    mpl.title("Ilość klientów a ich region")
+    mpl.xlabel("Region")
+    mpl.ylabel("Ilość klientów")
+    mpl.savefig("klient_a_region.png")
     mpl.close()
     print()
 
@@ -82,8 +96,37 @@ def get_statistics(df):
     mpl.close()
     print()
 
+    channel = df['Policy_Sales_Channel']
+    print("Sredni kanał przesyłu oferty " + str(channel.mean()))
+    count_channel = channel.value_counts()
+    print("Najczesciej wystepujacy kanał przesyłu " + str(count_ages.idxmax()))
+    # Wykres
+    count_channel.sort_index().plot()
+    mpl.title("Ilość klientów a ich kanal przsylu")
+    mpl.xlabel("Kanal")
+    mpl.ylabel("Ilość klientów")
+    mpl.savefig("kanal_a_region.png")
+    mpl.close()
+    print()
+
     responses = df['Response']
     print("Srednia wybierajacych ubezpieczenie " + str(responses.mean()))
     count_responses = responses.value_counts()
     print("Wybierajacy ubezpieczenie 1 - tak, 0 - nie")
     print(count_responses)
+    count_responses.plot(kind="barh", figsize=(6, 4))
+    mpl.title("Odpowiedzi klientow")
+    mpl.xlabel("Ilosc klientow")
+    mpl.ylabel("Odpowiedz")
+    mpl.savefig("response.png")
+    mpl.close()
+
+    model = ExtraTreesClassifier()
+    model.fit(df.drop(['Response'], axis=1), df['Response'])
+    print(model.feature_importances_)
+    feat_importances = pd.Series(model.feature_importances_, index=df.drop(['Response'], axis=1).columns)
+    feat_importances.nlargest(10).plot(kind='bar')
+    mpl.xticks(rotation=45)
+    mpl.title("Ważność poszczególnych atrybutów")
+    mpl.savefig("importance.png")
+    mpl.close()

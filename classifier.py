@@ -1,17 +1,22 @@
 import pandas as pd
-from sklearn.metrics import confusion_matrix, classification_report, plot_confusion_matrix
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.metrics import confusion_matrix, plot_confusion_matrix, accuracy_score
+from mlxtend.plotting import plot_confusion_matrix as pcm
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.tree import DecisionTreeClassifier, export_text
+from sklearn.neural_network import MLPClassifier
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.naive_bayes import GaussianNB
-from sklearn import tree
 import matplotlib.pyplot as mpl
+from imblearn.over_sampling import RandomOverSampler
+from sklearn.preprocessing import MinMaxScaler, normalize
 
 
-def generate_diff_chart(dtc, knn3, knn5, knn11, bayes):
-    x_sticks = ["dtc", "knn3", "knn7", "knn11", "bayes"]
+def generate_diff_chart(dtc, knn3, knn5, knn11, bayes, neural, forest):
+    x_sticks = ["dtc", "knn3", "knn7", "knn11", "bayes", "neural", "randf"]
     x = list(range(0, len(x_sticks)))
-    y = [dtc, knn3, knn5, knn11, bayes]
+    y = [dtc, knn3, knn5, knn11, bayes, neural, forest]
     mpl.xticks(x, x_sticks)
     mpl.bar(x, y, width=0.4, color="green", alpha=0.8)
     mpl.title("Porównanie poprawności klasyfikatorów")
@@ -26,12 +31,16 @@ class Classifier:
     train_classes = []
     test_inputs = []
     test_classes = []
+    scaler = MinMaxScaler()
 
     def __init__(self, df, divide_ratio, class_column):
-        c = df[class_column].values
-        i = df.drop([class_column], axis=1)
+        df.drop(['Gender', 'Driving_License'], axis=1)
+        c = df[class_column].values.astype('int64')
+        i = df.drop([class_column, 'Gender', 'Driving_License'], axis=1).values.astype('float64')
+        randomsample = RandomOverSampler()
+        i_new, c_new = randomsample.fit_sample(i, c)
         (self.train_inputs, self.test_inputs, self.train_classes, self.test_classes) = \
-            train_test_split(i, c, train_size=divide_ratio)
+            train_test_split(i_new, c_new, train_size=divide_ratio, random_state=1)
 
     def dtc(self):
         dtc = DecisionTreeClassifier()
@@ -65,3 +74,30 @@ class Classifier:
         mpl.savefig('gnb_confusion_matrix.png')
         mpl.close()
         return gnb_score
+
+    def neural(self):
+        x_train = normalize(self.train_inputs)
+        x_test = normalize(self.test_inputs)
+        clf = MLPClassifier(solver='adam', activation='tanh', hidden_layer_sizes=(64, 2))
+        clf.fit(x_train, self.train_classes)
+        y_pred = clf.predict(x_test)
+        score = accuracy_score(y_pred, self.test_classes)
+        cm = confusion_matrix(y_pred, self.test_classes)
+        print("Wynik dla sieci neuronowej", score)
+        pcm(conf_mat=cm)
+        mpl.title("Macierz błędu dla sieci neuronowej")
+        mpl.savefig("neural_confusion_matrix.png")
+        mpl.close()
+        return score
+
+    def random_forrest(self):
+        randomforest = RandomForestClassifier()
+        randomforest.fit(self.train_inputs, self.train_classes)
+        y_pred = randomforest.predict(self.test_inputs)
+        print("Srednia dla random forrest: ", accuracy_score(y_pred, self.test_classes))
+        cm = confusion_matrix(y_pred, self.test_classes)
+        pcm(conf_mat=cm)
+        mpl.title("Macierz błędu dla random forrest")
+        mpl.savefig("randomforest_confusion_matrix.png")
+        mpl.close()
+        return accuracy_score(y_pred, self.test_classes)
